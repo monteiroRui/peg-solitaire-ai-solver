@@ -1,12 +1,15 @@
 ;;;; puzzle.lisp
-;;;; Lógica específica do Peg Solitaire (Construída com base no LAB07)
+;;;; Lógica específica do Peg Solitaire
 ;;;; Projeto01 IA - 25/26
+;;;; Implementação funcional (sem efeitos laterais)
 
-;;; Representação do Tabuleiro (exemplo de teste incluído)
+;;; ---------------------------------------------------------
+;;; Representação do tabuleiro
+;;; ---------------------------------------------------------
+
 (defun tabuleiro-inicial ()
-"Tabuleiro inicial padrão com uma posição vazia no centro."
-  '(
-    (nil nil 1 1 1 nil nil)
+  "Retorna o tabuleiro inicial padrão do Peg Solitaire (32 peças)."
+  '((nil nil 1 1 1 nil nil)
     (nil nil 1 1 1 nil nil)
     (1 1 1 1 1 1 1)
     (1 1 1 0 1 1 1)
@@ -14,185 +17,177 @@
     (nil nil 1 1 1 nil nil)
     (nil nil 1 1 1 nil nil)))
 
-;;; Seletores
+;;; ---------------------------------------------------------
+;;; Acesso ao tabuleiro
+;;; ---------------------------------------------------------
 
-;; Teste: (linha 1 (tabuleiro-inicial)) 
 (defun linha (i tabuleiro)
-"Função que recebe um índice e o tabuleiro e retorna uma lista que representa essa linha do
- tabuleiro."
+  "Obtém a linha do tabuleiro (índice de 1 a 7)."
   (nth (1- i) tabuleiro))
 
-;; Teste: (coluna 1 (tabuleiro-inicial)) 
 (defun coluna (j tabuleiro)
-"Função que recebe um índice e o tabuleiro e retorna uma lista que representa essa coluna do
- tabuleiro."
-  (mapcar (lambda (linha) (nth (1- j) linha)) tabuleiro))
+  "Obtém a coluna do tabuleiro (índice de 1 a 7)."
+  (mapcar (lambda (l) (nth (1- j) l)) tabuleiro))
 
-;; Teste: (celula 4 4 (tabuleiro-inicial))
 (defun celula (i j tabuleiro)
-"Função que recebe dois índices e o tabuleiro e retorna o valor presente nessa célula do
- tabuleiro."
-  (let ((row (linha i tabuleiro)))
-    (if row (nth (1- j) row) nil)))
+  "Obtém o valor de uma célula do tabuleiro."
+  (let ((l (linha i tabuleiro)))
+    (when l (nth (1- j) l))))
 
-;;; Funções auxiliares
+(defun celula-validap (i j tabuleiro)
+  "Verifica se a célula é válida (contém 0 ou 1, não nil)."
+  (let ((v (celula i j tabuleiro)))
+    (or (eql v 0) (eql v 1))))
 
-;; Teste: (celula-valida 1 1 (tabuleiro-inicial))
-(defun celula-valida (i j tabuleiro)
-"Função predicado que recebe os índices da linha e da coluna e o tabuleiro."
-  (let ((val (celula i j tabuleiro)))
-    (if (or (equal val 1) (equal val 0)) t nil)))
+;;; ---------------------------------------------------------
+;;; Atualização funcional do tabuleiro
+;;; ---------------------------------------------------------
 
-;; Teste: (substituir-posicao 3 (linha 1 (tabuleiro-inicial)) 0)
-(defun substituir-posicao (n lista valor)
-"Função que recebe um índice, uma lista e um valor e substitui pelo valor
- pretendido nessa posição."
-  (append (subseq lista 0 (1- n))
-          (list valor)
-          (nthcdr n lista)))
+(defun substituir-posicao (n lista novo-valor)
+  "Substitui o elemento na posição n por novo-valor."
+  (cond
+    ((null lista) '())
+    ((= n 1) (cons novo-valor (cdr lista)))
+    (t (cons (car lista)
+             (substituir-posicao (1- n) (cdr lista) novo-valor)))))
 
-;; Teste: (substituir 1 3 (tabuleiro-inicial) 0)
-(defun substituir (i j tabuleiro valor)
-"Função que recebe dois índices, o tabuleiro e um valor. A função deverá retornar o
- tabuleiro com a célula substituída pelo valor pretendido."
-  (let* ((linha-atual (linha i tabuleiro))
-         (nova-linha (substituir-posicao j linha-atual valor)))
-    (substituir-posicao i tabuleiro nova-linha)))
+(defun substituir (i j tabuleiro novo-valor)
+  "Retorna novo tabuleiro com célula (i,j) substituída."
+  (cond
+    ((null tabuleiro) '())
+    ((= i 1)
+     (cons (substituir-posicao j (car tabuleiro) novo-valor)
+           (cdr tabuleiro)))
+    (t (cons (car tabuleiro)
+             (substituir (1- i) j (cdr tabuleiro) novo-valor)))))
 
-;;; Operadores
+;;; ---------------------------------------------------------
+;;; Validação de movimentos
+;;; ---------------------------------------------------------
 
-;; Teste: (operador-cd 4 2 (tabuleiro-inicial))
-(defun operador-cd (i j tabuleiro)
-"Movimento de captura para a direita: (i,j) = (i, j+2)"
-  (when (and (>= j 1) (<= j 5)        ; j+2 tem de caber no [1,7]
-             (celula-valida i j tabuleiro)
-             (equal (celula i j tabuleiro) 1)
-             (equal (celula i (+ j 1) tabuleiro) 1)
-             (equal (celula i (+ j 2) tabuleiro) 0))
-    (let ((t1 (substituir i j tabuleiro 0)))
-      (let ((t2 (substituir i (+ j 1) t1 0)))
-        (substituir i (+ j 2) t2 1)))))
+(defun posicao-validap (i j)
+  "Verifica se posição está dentro dos limites do tabuleiro."
+  (and (>= i 1) (<= i 7)
+       (>= j 1) (<= j 7)))
 
-;; Teste: (operador-ce 4 6 (tabuleiro-inicial))
-(defun operador-ce (i j tabuleiro)
-"Movimento de captura para a esquerda: (i,j) = (i, j-2)"
-  (when (and (> j 2)                  ; j-2 >= 1
-             (celula-valida i j tabuleiro)
-             (equal (celula i j tabuleiro) 1)
-             (equal (celula i (- j 1) tabuleiro) 1)
-             (equal (celula i (- j 2) tabuleiro) 0))
-    (let ((t1 (substituir i j tabuleiro 0)))
-      (let ((t2 (substituir i (- j 1) t1 0)))
-        (substituir i (- j 2) t2 1)))))
+(defun movimento-validop (origem-i origem-j meio-i meio-j destino-i destino-j tab)
+  "Verifica se um movimento é válido: origem com peça, meio com peça, destino vazio."
+  (and (posicao-validap origem-i origem-j)
+       (posicao-validap meio-i meio-j)
+       (posicao-validap destino-i destino-j)
+       (celula-validap origem-i origem-j tab)
+       (celula-validap meio-i meio-j tab)
+       (celula-validap destino-i destino-j tab)
+       (eql (celula origem-i origem-j tab) 1)
+       (eql (celula meio-i meio-j tab) 1)
+       (eql (celula destino-i destino-j tab) 0)))
 
-;; Teste: (operador-cc 6 4 (tabuleiro-inicial)) 
-(defun operador-cc (i j tabuleiro)
-"Movimento de captura para cima: (i,j) = (i-2, j)"
-  (when (and (> i 2)                  ; i-2 >= 1
-             (celula-valida i j tabuleiro)
-             (equal (celula i j tabuleiro) 1)
-             (equal (celula (- i 1) j tabuleiro) 1)
-             (equal (celula (- i 2) j tabuleiro) 0))
-    (let ((t1 (substituir i j tabuleiro 0)))
-      (let ((t2 (substituir (- i 1) j t1 0)))
-        (substituir (- i 2) j t2 1)))))
+(defun executar-movimento (origem-i origem-j meio-i meio-j destino-i destino-j tab)
+  "Executa um movimento: remove origem e meio, adiciona no destino."
+  (substituir destino-i destino-j
+              (substituir meio-i meio-j
+                          (substituir origem-i origem-j tab 0)
+                          0)
+              1))
 
-;; Teste: (operador-cb 2 4 (tabuleiro-inicial)) 
-(defun operador-cb (i j tabuleiro)
-"Movimento de captura para baixo: (i,j) = (i+2, j)"
-  (when (and (>= i 1) (<= i 5)        ; i+2 <= 7
-             (celula-valida i j tabuleiro)
-             (equal (celula i j tabuleiro) 1)
-             (equal (celula (+ i 1) j tabuleiro) 1)
-             (equal (celula (+ i 2) j tabuleiro) 0))
-    (let ((t1 (substituir i j tabuleiro 0)))
-      (let ((t2 (substituir (+ i 1) j t1 0)))
-        (substituir (+ i 2) j t2 1)))))
+;;; ---------------------------------------------------------
+;;; Operadores de movimento
+;;; ---------------------------------------------------------
 
-;;; Objetivo
+(defun operador-cd (i j tab)
+  "Operador Captura Direita: move peça para a direita (i,j) => (i,j+2)."
+  (when (movimento-validop i j i (+ j 1) i (+ j 2) tab)
+    (executar-movimento i j i (+ j 1) i (+ j 2) tab)))
 
-;; Teste: (objetivo? (tabuleiro-inicial))
+(defun operador-ce (i j tab)
+  "Operador Captura Esquerda: move peça para a esquerda (i,j) => (i,j-2)."
+  (when (movimento-validop i j i (- j 1) i (- j 2) tab)
+    (executar-movimento i j i (- j 1) i (- j 2) tab)))
+
+(defun operador-cc (i j tab)
+  "Operador Captura Cima: move peça para cima (i,j) => (i-2,j)."
+  (when (movimento-validop i j (- i 1) j (- i 2) j tab)
+    (executar-movimento i j (- i 1) j (- i 2) j tab)))
+
+(defun operador-cb (i j tab)
+  "Operador Captura Baixo: move peça para baixo (i,j) => (i+2,j)."
+  (when (movimento-validop i j (+ i 1) j (+ i 2) j tab)
+    (executar-movimento i j (+ i 1) j (+ i 2) j tab)))
+
+;;; ---------------------------------------------------------
+;;; Objetivo e contagem
+;;; ---------------------------------------------------------
+
+(defun contar-pecas (tabuleiro)
+  "Conta o número total de peças (1s) no tabuleiro."
+  (reduce #'+ (mapcar (lambda (l) (count 1 l)) tabuleiro)))
+
 (defun objetivo? (tabuleiro)
+  "Verifica se o objetivo foi alcançado (exatamente 1 peça)."
   (= (contar-pecas tabuleiro) 1))
 
-;; Teste: (contar-pecas (tabuleiro-inicial))
-(defun contar-pecas (tabuleiro)
-  (reduce #'+ (mapcar (lambda (linha)
-                        (count 1 linha))
-                      tabuleiro)))
-
+;;; ---------------------------------------------------------
 ;;; Geração de sucessores
+;;; ---------------------------------------------------------
 
-;; Teste: (aplicar-operadores 4 2 (tabuleiro-inicial))
-(defun aplicar-operadores (i j tabuleiro)
-"Aplica todos os operadores possíveis na posição (i,j) e devolve
- uma lista de novos tabuleiros válidos."
+(defun aplicar-operadores (i j tab)
+  "Aplica todos os operadores possíveis a partir de (i,j)."
   (remove nil
-          (list
-           (operador-cd i j tabuleiro)
-           (operador-ce i j tabuleiro)
-           (operador-cc i j tabuleiro)
-           (operador-cb i j tabuleiro))))
+          (list (operador-cd i j tab)
+                (operador-ce i j tab)
+                (operador-cc i j tab)
+                (operador-cb i j tab))))
 
-(defun gera-sucessores-aux (i j tabuleiro)
-"Função auxiliar recursiva para varrer o tabuleiro e gerar sucessores."
+(defun gera-sucessores-aux (i j tab)
+  "Gera sucessores percorrendo todas as posições do tabuleiro."
   (cond
-   ((> i 7) '())
-   ((> j 7) (gera-sucessores-aux (1+ i) 1 tabuleiro))
-   (t
-    (let ((depois-desta-pos (if (equal (celula i j tabuleiro) 1)
-                                (aplicar-operadores i j tabuleiro)
-                              '())))
-      (append depois-desta-pos
-              (gera-sucessores-aux i (1+ j) tabuleiro))))))
+    ((> i 7) '())
+    ((> j 7) (gera-sucessores-aux (1+ i) 1 tab))
+    ((eql (celula i j tab) 1)
+     (append (aplicar-operadores i j tab)
+             (gera-sucessores-aux i (1+ j) tab)))
+    (t (gera-sucessores-aux i (1+ j) tab))))
 
-;; Teste: (gera-sucessores (tabuleiro-inicial))
-;; Teste: (length (gera-sucessores (tabuleiro-inicial)))
 (defun gera-sucessores (tabuleiro)
-"Devolve a lista de todos os tabuleiros alcançáveis com um único movimento."
+  "Gera todos os sucessores possíveis de um tabuleiro."
   (gera-sucessores-aux 1 1 tabuleiro))
 
+;;; ---------------------------------------------------------
 ;;; Heurísticas
-(defun peca-movivel? (i j tabuleiro)
-  (and (equal (celula i j tabuleiro) 1)
-       (or (operador-cd i j tabuleiro)
-           (operador-ce i j tabuleiro)
-           (operador-cc i j tabuleiro)
-           (operador-cb i j tabuleiro))))
+;;; ---------------------------------------------------------
 
-(defun contar-pecas-moviveis-aux (i j tabuleiro)
+(defun peca-movivel? (i j tab)
+  "Verifica se a peça em (i,j) pode mover-se."
+  (and (eql (celula i j tab) 1)
+       (or (operador-cd i j tab)
+           (operador-ce i j tab)
+           (operador-cc i j tab)
+           (operador-cb i j tab))))
+
+(defun contar-pecas-moviveis-aux (i j tab)
+  "Conta recursivamente o número de peças que podem mover-se."
   (cond
     ((> i 7) 0)
-    ((> j 7) (contar-pecas-moviveis-aux (1+ i) 1 tabuleiro))
-    ((peca-movivel? i j tabuleiro)
-     (1+ (contar-pecas-moviveis-aux i (1+ j) tabuleiro)))
-    (t
-     (contar-pecas-moviveis-aux i (1+ j) tabuleiro))))
+    ((> j 7) (contar-pecas-moviveis-aux (1+ i) 1 tab))
+    ((peca-movivel? i j tab)
+     (1+ (contar-pecas-moviveis-aux i (1+ j) tab)))
+    (t (contar-pecas-moviveis-aux i (1+ j) tab))))
 
-(defun contar-pecas-moviveis (tabuleiro)
-  (contar-pecas-moviveis-aux 1 1 tabuleiro))
+(defun contar-pecas-moviveis (tab)
+  "Retorna o número total de peças que podem mover-se."
+  (contar-pecas-moviveis-aux 1 1 tab))
 
-(defun dist-centro (i j)
-  (+ (abs (- i 4)) (abs (- j 4))))
+(defun h1 (tab)
+  "Heurística base: h(x) = 1 / (peças_móveis + 1).
+   Favorece estados com mais peças capazes de se moverem."
+  (/ 1.0 (+ 1 (contar-pecas-moviveis tab))))
 
-(defun soma-dist-centro-aux (i j tabuleiro)
-  (cond
-    ((> i 7) 0)
-    ((> j 7) (soma-dist-centro-aux (1+ i) 1 tabuleiro))
-    ((and (celula-valida i j tabuleiro)
-          (equal (celula i j tabuleiro) 1))
-     (+ (dist-centro i j)
-        (soma-dist-centro-aux i (1+ j) tabuleiro)))
-    (t
-     (soma-dist-centro-aux i (1+ j) tabuleiro))))
-
-(defun soma-dist-centro (tabuleiro)
-  (soma-dist-centro-aux 1 1 tabuleiro))
-
-;; Teste: (h1 (tabuleiro-inicial))
-(defun h1 (tabuleiro)
-  (/ 1.0 (+ 1 (contar-pecas-moviveis tabuleiro))))
-
-(defun h2 (tabuleiro)
-  (+ (/ 1.0 (+ 1 (contar-pecas-moviveis tabuleiro)))
-     (/ (soma-dist-centro tabuleiro) 20.0)))
+(defun h2 (tab)
+  "Heurística melhorada: h(x) = número_de_peças - 1.
+   
+   Admissível porque cada movimento remove exatamente 1 peça,
+   logo são necessários no mínimo (n-1) movimentos para ir
+   de n peças para 1 peça.
+   
+   Mais informada que h1, especialmente para problemas grandes."
+  (float (1- (contar-pecas tab))))
