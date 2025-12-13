@@ -1,7 +1,7 @@
 # Manual do Utilizador
 
 <!-- Logotipo no canto superior direito -->
-<img src=".\Logo\transferir.png" alt="Logotipo da Escola" width="120" style="position:absolute; top:0; right:0;"/>
+<img src="..\Logo\transferir.png" alt="Logotipo da Escola" width="120" style="position:absolute; top:0; right:0;"/>
 
 ## Projeto: Resolução do Jogo **O Solitário (Peg Solitaire)**
 
